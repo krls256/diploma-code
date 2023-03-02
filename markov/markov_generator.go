@@ -6,21 +6,27 @@ import (
 	"math/rand"
 )
 
-type Generator struct {
+type Model struct {
 	mu, a     *mat.Dense
 	processes []*poisson.ProcessWithIntensityFunc
 }
 
-func NewGenerator(mu, a *mat.Dense, processes []*poisson.ProcessWithIntensityFunc) *Generator {
-	// todo: sizes
-	return &Generator{mu: mu, a: a, processes: processes}
+func NewModel(mu, a *mat.Dense, processes []*poisson.ProcessWithIntensityFunc) *Model {
+	muRows, muCols := mu.Dims()
+	if muRows != 1 {
+		panic("wrong sizes")
+	}
+
+	aRows, aCols := a.Dims()
+	if muCols != aCols || aCols != aRows || aRows != len(processes) {
+		panic("wrong sizes")
+	}
+	return &Model{mu: mu, a: a, processes: processes}
 }
 
-func (m *Generator) Generate(n int) []*poisson.Area {
+func (m *Model) Generate(n int) (areas []*poisson.Area, stateChain []int) {
 	_, col := m.a.Dims()
 	base := rand.Float64()
-
-	areas := make([]*poisson.Area, 0)
 
 	var baseState = 0
 	for baseState = 0; baseState < col; baseState++ {
@@ -32,10 +38,11 @@ func (m *Generator) Generate(n int) []*poisson.Area {
 	}
 
 	areas = append(areas, m.processes[baseState].Generate())
+	stateChain = append(stateChain, baseState)
 
 	for i := 1; i < n; i++ {
-		//fmt.Println(baseState)
 		base = rand.Float64()
+
 		for j := 0; j < col; j++ {
 			if m.a.At(baseState, j) > base {
 				baseState = j
@@ -47,7 +54,8 @@ func (m *Generator) Generate(n int) []*poisson.Area {
 		}
 
 		areas = append(areas, m.processes[baseState].Generate())
+		stateChain = append(stateChain, baseState)
 	}
 
-	return areas
+	return
 }

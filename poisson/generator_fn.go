@@ -52,7 +52,6 @@ func (p *ProcessWithIntensityFunc) Generate() *Area {
 
 			middleX, middleY := xStart+(xEnd-xStart)/2, yStart+(yEnd-yStart)/2
 			intensityMap[Region{xStart, xEnd, yStart, yEnd}] = p.IntensityFunc(middleX, middleY)
-			area[Region{xStart, xEnd, yStart, yEnd}] = 0
 		}
 	}
 

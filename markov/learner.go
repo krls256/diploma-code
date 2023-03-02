@@ -2,7 +2,6 @@ package markov
 
 import (
 	"diploma/poisson"
-	"fmt"
 	"gitlab.eemi.tech/golang/factgorial/factgorial"
 	"gonum.org/v1/gonum/mat"
 	"math"
@@ -59,7 +58,6 @@ func (l *Learner) CalcAlphas() [][]float64 {
 
 		for j := 0; j < states; j++ {
 			if t == 0 {
-				fmt.Println(">>>", j, l.Mu.At(0, j), l.CalcB(j, l.frames[0]))
 				alphas[0][j] = l.Mu.At(0, j) * l.CalcB(j, l.frames[0])
 			} else {
 				alp := 0.0
@@ -129,9 +127,9 @@ func (l *Learner) Step() {
 	_, states := l.Mu.Dims()
 	T := len(l.frames)
 	alphas := l.CalcAlphas()
-	fmt.Println("alphas", alphas[:5])
+	//fmt.Println("alphas", alphas[:5])
 	betas := l.CalcBetas()
-	fmt.Println("betas", betas[:5])
+	//fmt.Println("betas", betas[:5])
 
 	newMu := mat.NewDense(1, states, make([]float64, states))
 	newA := mat.NewDense(states, states, make([]float64, states*states))
@@ -144,7 +142,7 @@ func (l *Learner) Step() {
 			divider += betas[0][j] * alphas[0][j]
 		}
 
-		fmt.Println(betas[0][i] * alphas[0][i])
+		//fmt.Println(betas[0][i] * alphas[0][i])
 
 		newMu.Set(0, i, betas[0][i]*alphas[0][i]/divider)
 	}

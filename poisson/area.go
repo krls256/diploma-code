@@ -8,7 +8,6 @@ import (
 	"gonum.org/v1/plot/vg"
 	"image/color"
 	"math/rand"
-	"time"
 )
 
 type Area map[Region]int
@@ -29,29 +28,6 @@ func (a *Area) TotalPoint() int {
 	}, 0)
 }
 
-func (a *Area) Draw(filename string) {
-	rand.Seed(time.Now().Unix())
-	scatterData := a.Points()
-
-	p := DrawGrid(lo.Keys(*a), "Points Process")
-
-	s, err := plotter.NewScatter(scatterData)
-	if err != nil {
-		panic(err)
-	}
-	s.Radius = vg.Points(1)
-	s.GlyphStyle.Color = color.RGBA{A: 255}
-
-	p.Legend.Add("scatter", s)
-
-	p.Add(s)
-
-	// Save the plot to a PNG file.
-	if err := p.Save(4*vg.Inch, 4*vg.Inch, filename); err != nil {
-		panic(err)
-	}
-}
-
 func (a *Area) Points() plotter.XYs {
 	pts := make(plotter.XYs, 0)
 
@@ -65,30 +41,6 @@ func (a *Area) Points() plotter.XYs {
 	}
 
 	return pts
-}
-
-func (a *Area) RegionLines() []*plotter.Line {
-	lines := make([]*plotter.Line, 0, len(*a))
-	for region := range *a {
-		XStart, XEnd, YStart, YEnd := region[0], region[1], region[2], region[3]
-		l, err := plotter.NewLine(plotter.XYs{
-			plotter.XY{X: XStart, Y: YStart},
-			plotter.XY{X: XStart, Y: YEnd},
-			plotter.XY{X: XEnd, Y: YEnd},
-			plotter.XY{X: XEnd, Y: YStart},
-		})
-
-		if err != nil {
-			panic(err)
-		}
-
-		l.LineStyle.Width = vg.Points(1)
-		l.LineStyle.Color = color.RGBA{G: 255, A: 255}
-		lines = append(lines, l)
-
-	}
-
-	return lines
 }
 
 func randomXY(region Region) (x, y float64) {
