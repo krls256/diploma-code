@@ -55,7 +55,7 @@ func (a *Area) Image(imageType, titleNum int) image.Image {
 	}
 }
 
-func DrawIntensityMap(im map[Region]float64, titleNum int) image.Image {
+func DrawIntensityMap(im IntensityMap, titleNum int) image.Image {
 	return WriteOnGrid(lo.Keys(im), fmt.Sprintf("Points Process %v", titleNum), func(region Region) string {
 		return fmt.Sprintf("%.3f", im[region])
 	})
@@ -77,7 +77,7 @@ func DrawFrames(areas []*Area, filenameBase string, imageType int) {
 	}
 }
 
-func DrawGif(areas []*Area, stageChain []int, intensityMaps []map[Region]float64, filenameBase string) {
+func DrawGif(areas []*Area, stageChain []int, intensityMaps []IntensityMap, filenameBase string) {
 	f, err := os.OpenFile(fmt.Sprintf("%v.gif", filenameBase), os.O_RDWR|os.O_TRUNC|os.O_CREATE, 0666)
 	if err != nil {
 		panic(err)

@@ -13,6 +13,14 @@ import (
 type Area map[Region]int
 type Region [4]float64 // XStart, XEnd, YStart, YEnd
 
+func RegionRowOrderBiggerThan(r1, r2 Region) bool {
+	if r1[2] == r2[2] {
+		return r1[0] > r2[0]
+	}
+
+	return r1[2] > r2[2]
+}
+
 func (r Region) String() string {
 	return fmt.Sprintf("%v-%v-%v-%v", r[0], r[1], r[2], r[3])
 }

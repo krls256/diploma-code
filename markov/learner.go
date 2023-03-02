@@ -8,20 +8,19 @@ import (
 )
 
 type Learner struct {
-	Mu, A     *mat.Dense
-	Processes []map[poisson.Region]float64
-	frames    []*poisson.Area
+	Model  *Model
+	frames []*poisson.Area
 }
 
-func NewLearner(mu, a *mat.Dense, processes []map[poisson.Region]float64, frames []*poisson.Area) *Learner {
-	return &Learner{A: a, Mu: mu, Processes: processes, frames: frames}
+func NewLearner(model *Model, frames []*poisson.Area) *Learner {
+	return &Learner{Model: model, frames: frames}
 }
 
 func (l *Learner) CalcB(state int, area *poisson.Area) float64 {
 	val := 1.0
 
 	for region, count := range *area {
-		g := l.Processes[state][region]
+		g := l.Model.Processes[state][region]
 
 		f, err := factgorial.Factorial(count)
 		if err != nil {
@@ -44,7 +43,7 @@ func (l *Learner) CalcB(state int, area *poisson.Area) float64 {
 }
 
 func (l *Learner) CalcAlphas() [][]float64 {
-	_, states := l.Mu.Dims()
+	_, states := l.Model.Mu.Dims()
 	alphas := make([][]float64, len(l.frames))
 
 	//alphas[0] = make([]float64, states)
@@ -58,12 +57,12 @@ func (l *Learner) CalcAlphas() [][]float64 {
 
 		for j := 0; j < states; j++ {
 			if t == 0 {
-				alphas[0][j] = l.Mu.At(0, j) * l.CalcB(j, l.frames[0])
+				alphas[0][j] = l.Model.Mu.At(0, j) * l.CalcB(j, l.frames[0])
 			} else {
 				alp := 0.0
 
 				for i := 0; i < states; i++ {
-					alp += alphas[t-1][i] * l.A.At(i, j) * l.CalcB(j, l.frames[t])
+					alp += alphas[t-1][i] * l.Model.A.At(i, j) * l.CalcB(j, l.frames[t])
 
 					//fmt.Println("ddd", alphas[t-1][i], l.A.At(i, j), l.CalcB(j, l.frames[t]))
 
@@ -88,7 +87,7 @@ func (l *Learner) CalcAlphas() [][]float64 {
 }
 
 func (l *Learner) CalcBetas() [][]float64 {
-	_, states := l.Mu.Dims()
+	_, states := l.Model.Mu.Dims()
 	betas := make([][]float64, len(l.frames))
 
 	//betas[len(l.frames)-1] = make([]float64, states)
@@ -106,7 +105,7 @@ func (l *Learner) CalcBetas() [][]float64 {
 			} else {
 				beta := 0.0
 				for i := 0; i < states; i++ {
-					beta += l.A.At(j, i) * l.CalcB(i, l.frames[t+1]) * betas[t+1][i]
+					beta += l.Model.A.At(j, i) * l.CalcB(i, l.frames[t+1]) * betas[t+1][i]
 				}
 
 				betas[t][j] = beta
@@ -124,7 +123,7 @@ func (l *Learner) CalcBetas() [][]float64 {
 }
 
 func (l *Learner) Step() {
-	_, states := l.Mu.Dims()
+	_, states := l.Model.Mu.Dims()
 	T := len(l.frames)
 	alphas := l.CalcAlphas()
 	//fmt.Println("alphas", alphas[:5])
@@ -133,7 +132,7 @@ func (l *Learner) Step() {
 
 	newMu := mat.NewDense(1, states, make([]float64, states))
 	newA := mat.NewDense(states, states, make([]float64, states*states))
-	newProcesses := make([]map[poisson.Region]float64, states)
+	newProcesses := make([]poisson.IntensityMap, states)
 
 	for i := 0; i < states; i++ {
 		divider := 0.0
@@ -155,14 +154,14 @@ func (l *Learner) Step() {
 			for k := 0; k < states; k++ {
 				tmp := 0.0
 				for t := 0; t < T-1; t++ {
-					tmp += alphas[t][i] * betas[t+1][k] * l.A.At(i, k) * l.CalcB(k, l.frames[t+1])
+					tmp += alphas[t][i] * betas[t+1][k] * l.Model.A.At(i, k) * l.CalcB(k, l.frames[t+1])
 				}
 
 				bottom += tmp
 			}
 
 			for t := 0; t < T-1; t++ {
-				top += alphas[t][i] * betas[t+1][j] * l.A.At(i, j) * l.CalcB(j, l.frames[t+1])
+				top += alphas[t][i] * betas[t+1][j] * l.Model.A.At(i, j) * l.CalcB(j, l.frames[t+1])
 			}
 
 			newA.Set(i, j, top/bottom)
@@ -170,7 +169,7 @@ func (l *Learner) Step() {
 	}
 
 	for i := 0; i < states; i++ {
-		newProcesses[i] = map[poisson.Region]float64{}
+		newProcesses[i] = poisson.IntensityMap{}
 		// in formulas region is j
 		for region := range *l.frames[0] {
 			top := 0.0
@@ -185,7 +184,7 @@ func (l *Learner) Step() {
 		}
 	}
 
-	l.Mu = newMu
-	l.A = newA
-	l.Processes = newProcesses
+	l.Model.Mu = newMu
+	l.Model.A = newA
+	l.Model.Processes = newProcesses
 }
