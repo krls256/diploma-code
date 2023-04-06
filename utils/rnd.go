@@ -40,3 +40,13 @@ func RandomizeMap[K comparable](m map[K]float64, randomizeCoefficient float64) m
 
 	return m
 }
+
+func RandomMap[K comparable](keys []K, expectedSum float64, randomizeCoefficient float64) map[K]float64 {
+	m := map[K]float64{}
+
+	for _, key := range keys {
+		m[key] = rand.Float64() * randomizeCoefficient
+	}
+
+	return m
+}

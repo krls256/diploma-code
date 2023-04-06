@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"github.com/andybons/gogif"
 	"github.com/samber/lo"
+	"golang.org/x/exp/rand"
+	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
-	"gonum.org/v1/plot/vg"
 	"image"
-	"image/color"
 	"image/gif"
 	"image/png"
 	"os"
@@ -18,42 +18,6 @@ const (
 	PointsImage = iota
 	NumsImage
 )
-
-func (a *Area) PointsImage(titleNum int) image.Image {
-	scatterData := a.Points()
-
-	p := DrawGrid(lo.Keys(*a), fmt.Sprintf("Points Process %v", titleNum))
-
-	s, err := plotter.NewScatter(scatterData)
-	if err != nil {
-		panic(err)
-	}
-	s.Radius = vg.Points(1)
-	s.GlyphStyle.Color = color.RGBA{A: 255}
-
-	p.Legend.Add("scatter", s)
-
-	p.Add(s)
-
-	return utils.PlotToPNG(p)
-}
-
-func (a *Area) NumsImage(titleNum int) image.Image {
-	return WriteOnGrid(lo.Keys(*a), fmt.Sprintf("Points Process %v", titleNum), func(region Region) string {
-		return fmt.Sprintf("%v", (*a)[region])
-	})
-}
-
-func (a *Area) Image(imageType, titleNum int) image.Image {
-	switch imageType {
-	case PointsImage:
-		return a.PointsImage(titleNum)
-	case NumsImage:
-		return a.NumsImage(titleNum)
-	default:
-		panic("unknown type")
-	}
-}
 
 func DrawIntensityMap(im IntensityMap, titleNum int) image.Image {
 	return WriteOnGrid(lo.Keys(im), fmt.Sprintf("Points Process %v", titleNum), func(region Region) string {
@@ -131,4 +95,28 @@ func WriteOnGrid(regions []Region, imageTitle string, textFunc func(Region) stri
 	}
 
 	return img
+}
+
+func randomXY(region Region) (x, y float64) {
+	XStart, XEnd, YStart, YEnd := region[0], region[1], region[2], region[3]
+	xSize, ySize := XEnd-XStart, YEnd-YStart
+	relX, relY := rand.Float64()*xSize, rand.Float64()*ySize
+
+	return relX + XStart, relY + YStart
+}
+
+func DrawGrid(regions []Region, title string) *plot.Plot {
+	p := plot.New()
+
+	p.Title.Text = title
+	p.X.Label.Text = "X"
+	p.Y.Label.Text = "Y"
+	p.Add(plotter.NewGrid())
+
+	grid := RegionLines(regions)
+	for _, l := range grid {
+		p.Add(l)
+	}
+
+	return p
 }

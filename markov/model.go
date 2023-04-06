@@ -12,8 +12,8 @@ import (
 )
 
 type Model struct {
-	Mu, A     *mat.Dense
-	Processes []poisson.IntensityMap
+	Mu, A           *mat.Dense
+	HiddenProcesses []poisson.IntensityMap
 }
 
 func (m *Model) String() string {
@@ -37,10 +37,10 @@ func (m *Model) String() string {
 		buf.WriteString(fmt.Sprintf("|%v| \n", strings.Join(rowStr, ", ")))
 	}
 
-	for i := 0; i < len(m.Processes); i++ {
+	for i := 0; i < len(m.HiddenProcesses); i++ {
 		buf.WriteString(fmt.Sprintf("process %v:\n", i+1))
-		buf.WriteString(m.Processes[i].String())
-		if i != len(m.Processes)-1 {
+		buf.WriteString(m.HiddenProcesses[i].String())
+		if i != len(m.HiddenProcesses)-1 {
 			buf.WriteString("\n")
 		}
 	}
@@ -58,10 +58,11 @@ func NewModel(mu, a *mat.Dense, processes []poisson.IntensityMap) *Model {
 	if muCols != aCols || aCols != aRows || aRows != len(processes) {
 		panic("wrong sizes")
 	}
-	return &Model{Mu: mu, A: a, Processes: processes}
+	return &Model{Mu: mu, A: a, HiddenProcesses: processes}
 }
 
-func (m *Model) Generate(n int) (areas []*poisson.Area, stateChain []int) {
+func (m *Model) Generate(n int) *ResultChain {
+	rc := &ResultChain{}
 	_, col := m.A.Dims()
 	base := rand.Float64()
 
@@ -74,8 +75,8 @@ func (m *Model) Generate(n int) (areas []*poisson.Area, stateChain []int) {
 		base -= m.Mu.At(0, baseState)
 	}
 
-	areas = append(areas, m.Processes[baseState].Generate())
-	stateChain = append(stateChain, baseState)
+	rc.Frames = append(rc.Frames, m.HiddenProcesses[baseState].Generate())
+	rc.StateChain = append(rc.StateChain, baseState)
 
 	for i := 1; i < n; i++ {
 		base = rand.Float64()
@@ -90,9 +91,9 @@ func (m *Model) Generate(n int) (areas []*poisson.Area, stateChain []int) {
 			base -= m.A.At(baseState, j)
 		}
 
-		areas = append(areas, m.Processes[baseState].Generate())
-		stateChain = append(stateChain, baseState)
+		rc.Frames = append(rc.Frames, m.HiddenProcesses[baseState].Generate())
+		rc.StateChain = append(rc.StateChain, baseState)
 	}
 
-	return
+	return rc
 }

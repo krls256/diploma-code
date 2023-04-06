@@ -1,83 +1,113 @@
 package main
 
 import (
+	"diploma/config"
 	"diploma/markov"
 	"diploma/poisson"
 	"diploma/utils"
+	"encoding/json"
 	"fmt"
-	"golang.org/x/exp/rand"
 	"gonum.org/v1/gonum/mat"
-	"math"
-
-	"time"
+	"gonum.org/v1/plot"
+	"gonum.org/v1/plot/plotter"
+	"gonum.org/v1/plot/vg"
+	"image/color"
+	"sync"
 )
 
 const (
-	xStartG           = 0
-	xEndG             = 10
-	yStartG           = 0
-	yEndG             = 10
-	XAxisPartQuantity = 2
-	YAxisPartQuantity = 2
+	N = 100
 
-	xCenter = (xEndG - xStartG) / 2
-	yCenter = (yEndG - yStartG) / 2
-
-	N = 50
-)
-
-func init() {
-	rand.Seed(uint64(time.Now().UnixNano()))
-}
-
-func regular(x, y float64) float64 {
-	return math.Max(-math.Pow(x-y, 2)/2+30, 0)
-}
-
-func irregular(x, y float64) float64 {
-	return math.Max(math.Pow(y-yCenter, 3)+10, 4)
-}
-
-func cand1(x, y float64) float64 {
-	return y * y / 10
-}
-
-func cand2(x, y float64) float64 {
-	return math.Pow(math.E, 4+(y-x)*(x-y)/24) / 15
-}
-
-var (
-	p1 = poisson.NewProcessWithIntensityFunc(xStartG, xEndG, yStartG, yEndG, XAxisPartQuantity, YAxisPartQuantity, cand1).IntensityMap()
-	p2 = poisson.NewProcessWithIntensityFunc(xStartG, xEndG, yStartG, yEndG, XAxisPartQuantity, YAxisPartQuantity, cand2).IntensityMap()
-	mu = mat.NewDense(1, 2, []float64{0.75, 0.25})
-	a  = mat.NewDense(2, 2, []float64{
-		0.65, 0.35,
-		0.5, 0.5,
-	})
-
-	proc = markov.NewModel(mu, a, []poisson.IntensityMap{p1, p2})
+	LearnerCount = 1
+	Iters        = 500
 )
 
 func main() {
-	frames, statesChain := proc.Generate(N)
+	//rc := config.MarkovModel.Generate(N)
+	//utils.MustSave("./cache/data.json", rc, json.Marshal)
 
-	muL := mat.NewDense(1, 2, []float64{0.70, 0.30})
-	aL := mat.NewDense(2, 2, []float64{
-		0.65, 0.35,
-		0.45, 0.55,
-	})
+	rc := markov.ResultChain{}
+	utils.MustLoad("./cache/data.json", &rc, json.Unmarshal)
 
-	process := []poisson.IntensityMap{
-		utils.RandomizeMap(p2.Copy(), 1),
-		utils.RandomizeMap(p2.Copy(), 1)}
+	//go poisson.DrawGif(rc.Frames, rc.StateChain, []poisson.IntensityMap{p1, p2}, "./tmp/card")
 
-	l := markov.NewLearner(markov.NewModel(muL, aL, process), frames)
+	wg := sync.WaitGroup{}
 
-	for i := 0; i < 20; i++ {
-		l.Step()
+	for i := 0; i < LearnerCount; i++ {
+		wg.Add(1)
+
+		go learn(rc.Frames, &wg)
 	}
 
-	fmt.Println(l.Model)
+	wg.Wait()
 
-	poisson.DrawGif(frames, statesChain, []poisson.IntensityMap{p1, p2}, "./tmp/card")
+	//fmt.Println("Waiting 10 seconds for gif")
+	//time.Sleep(time.Second * 10)
+}
+
+func learn(frames []*poisson.Area, wg *sync.WaitGroup) {
+	muL := mat.NewDense(1, 2, utils.RandomStochasticMatrix(1, 2))
+	utils.MustSave("./cache/mu.bin", muL, utils.DenseMarshal(muL))
+
+	//muL := &mat.Dense{}
+	//utils.MustLoad("./cache/mu.bin", muL, utils.DenseUnmarshal(muL))
+
+	aL := mat.NewDense(2, 2, utils.RandomStochasticMatrix(2, 2))
+	utils.MustSave("./cache/a.bin", aL, utils.DenseMarshal(aL))
+
+	//aL := &mat.Dense{}
+	//utils.MustLoad("./cache/a.bin", aL, utils.DenseUnmarshal(aL))
+
+	processL := []poisson.IntensityMap{
+		config.P1.Copy(),
+		config.P2.Copy(),
+		//utils.RandomMap(lo.Keys(config.P1.Copy()), 5, 5),
+		//utils.RandomMap(lo.Keys(config.P2.Copy()), 5, 5),
+	}
+	utils.MustSave("./cache/process.json", processL, json.Marshal)
+	//utils.MustLoad("./cache/process.json", &processL, json.Unmarshal)
+
+	l := markov.NewLearner(markov.NewModel(muL, aL, processL), frames)
+
+	//fmt.Println(l.Model.String())
+
+	logProbs := []float64{}
+
+	for i := 0; i < Iters; i++ {
+		l.Step()
+		logProbs = append(logProbs, l.LogProb())
+		fmt.Println(l.Model.String())
+	}
+
+	drawLogProb(logProbs)
+
+	wg.Done()
+}
+
+func drawLogProb(probs []float64) {
+	p := plot.New()
+
+	p.Title.Text = "Log Prob"
+	p.X.Label.Text = "X"
+	p.Y.Label.Text = "Y"
+	p.Add(plotter.NewGrid())
+
+	lineData := plotter.XYs{}
+	for i, pr := range probs {
+		lineData = append(lineData, plotter.XY{X: float64(i), Y: pr})
+	}
+
+	l, err := plotter.NewLine(lineData)
+	if err != nil {
+		panic(err)
+	}
+	l.LineStyle.Width = vg.Points(1)
+	l.LineStyle.Dashes = []vg.Length{vg.Points(5), vg.Points(5)}
+	l.LineStyle.Color = color.RGBA{B: 255, A: 255}
+
+	p.Add(l)
+
+	if err = p.Save(4*vg.Inch, 4*vg.Inch, "log-prob.png"); err != nil {
+		panic(err)
+	}
 }
