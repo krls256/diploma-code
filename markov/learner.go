@@ -18,7 +18,7 @@ func NewLearner(model *Model, frames []*poisson.Area) *Learner {
 }
 
 func (l *Learner) CalcB(state int, area *poisson.Area) float64 {
-	return PoissonProbability(state, area, l.Model.HiddenProcesses)
+	return PoissonProbability(state, area, l.Model.ObservableProcesses)
 }
 
 func (l *Learner) CalcAlphas(useScale bool) (alphas [][]float64, scalingCoefficients []float64) {
@@ -31,7 +31,7 @@ func (l *Learner) CalcBetas(useScale bool, scalingCoefficients []float64) [][]fl
 
 func (l *Learner) Step() (scalingCoefficients []float64) {
 	useScale := true
-	_, states := l.Model.Mu.Dims()
+	_, states := l.Model.BaseDistribution.Dims()
 	T := len(l.Frames)
 
 	alphas, scalingCoefficients := l.CalcAlphas(useScale)
@@ -59,14 +59,14 @@ func (l *Learner) Step() (scalingCoefficients []float64) {
 			for k := 0; k < states; k++ {
 				tmp := 0.0
 				for t := 0; t < T-1; t++ {
-					tmp += alphas[t][i] * betas[t+1][k] * l.Model.A.At(i, k) * l.CalcB(k, l.Frames[t+1])
+					tmp += alphas[t][i] * betas[t+1][k] * l.Model.HiddenDistribution.At(i, k) * l.CalcB(k, l.Frames[t+1])
 				}
 
 				bottom += tmp
 			}
 
 			for t := 0; t < T-1; t++ {
-				top += alphas[t][i] * betas[t+1][j] * l.Model.A.At(i, j) * l.CalcB(j, l.Frames[t+1])
+				top += alphas[t][i] * betas[t+1][j] * l.Model.HiddenDistribution.At(i, j) * l.CalcB(j, l.Frames[t+1])
 			}
 
 			newA.Set(i, j, top/bottom)
@@ -79,19 +79,26 @@ func (l *Learner) Step() (scalingCoefficients []float64) {
 		for region := range *l.Frames[0] {
 			top := 0.0
 			bottom := 0.0
-			for t := 0; t < T; t++ {
+			for t := 0; t < T-1; /* WARN not T+1 */ t++ {
+				subSum := 0.0
 				count := (*l.Frames[t])[region]
-				bottom += alphas[t][i] * betas[t][i]
-				top += alphas[t][i] * betas[t][i] * float64(count)
+
+				for k := 0; k < states; k++ {
+					subSum += l.Model.HiddenDistribution.At(i, k) * betas[t+1][k] * l.CalcB(k, l.Frames[t+1])
+				}
+
+				bottom += alphas[t][i] * subSum
+				top += alphas[t][i] * subSum * float64(count)
+
 			}
 
 			newProcesses[i][region] = top / bottom
 		}
 	}
 
-	l.Model.Mu = newMu
-	l.Model.A = newA
-	l.Model.HiddenProcesses = newProcesses
+	l.Model.BaseDistribution = newMu
+	l.Model.HiddenDistribution = newA
+	l.Model.ObservableProcesses = newProcesses
 
 	l.ScalingCoefficients = scalingCoefficients
 

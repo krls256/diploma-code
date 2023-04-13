@@ -1,13 +1,9 @@
 package main
 
 import (
-	"diploma/config"
 	"diploma/markov"
 	"diploma/poisson"
-	"diploma/utils"
-	"encoding/json"
 	"fmt"
-	"gonum.org/v1/gonum/mat"
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
 	"gonum.org/v1/plot/vg"
@@ -19,69 +15,59 @@ const (
 	N = 100
 
 	LearnerCount = 1
-	Iters        = 500
+	Iters        = 100
 )
 
 func main() {
-	//rc := config.MarkovModel.Generate(N)
-	//utils.MustSave("./cache/data.json", rc, json.Marshal)
-
-	rc := markov.ResultChain{}
-	utils.MustLoad("./cache/data.json", &rc, json.Unmarshal)
-
-	//go poisson.DrawGif(rc.Frames, rc.StateChain, []poisson.IntensityMap{p1, p2}, "./tmp/card")
+	rf := markov.NewRandomFactory(false, false)
+	rc := rf.Chain()
 
 	wg := sync.WaitGroup{}
+	wg.Add(1)
+
+	go func() {
+		poisson.DrawGif(rc.Frames, rc.StateChain, []poisson.IntensityMap{markov.P1, markov.P2}, "./report/chain")
+
+		wg.Done()
+	}()
 
 	for i := 0; i < LearnerCount; i++ {
 		wg.Add(1)
 
-		go learn(rc.Frames, &wg)
+		go func(index int) {
+			before, after := learn(rc.Frames, rf)
+
+			before.Draw(fmt.Sprintf("report/generated-%v.png", index+1))
+			after.Draw(fmt.Sprintf("report/learned-%v.png", index+1))
+
+			wg.Done()
+		}(i)
 	}
 
 	wg.Wait()
 
-	//fmt.Println("Waiting 10 seconds for gif")
-	//time.Sleep(time.Second * 10)
+	markov.MarkovModel.Draw("report/original.png")
 }
 
-func learn(frames []*poisson.Area, wg *sync.WaitGroup) {
-	muL := mat.NewDense(1, 2, utils.RandomStochasticMatrix(1, 2))
-	utils.MustSave("./cache/mu.bin", muL, utils.DenseMarshal(muL))
-
-	//muL := &mat.Dense{}
-	//utils.MustLoad("./cache/mu.bin", muL, utils.DenseUnmarshal(muL))
-
-	aL := mat.NewDense(2, 2, utils.RandomStochasticMatrix(2, 2))
-	utils.MustSave("./cache/a.bin", aL, utils.DenseMarshal(aL))
-
-	//aL := &mat.Dense{}
-	//utils.MustLoad("./cache/a.bin", aL, utils.DenseUnmarshal(aL))
-
-	processL := []poisson.IntensityMap{
-		config.P1.Copy(),
-		config.P2.Copy(),
-		//utils.RandomMap(lo.Keys(config.P1.Copy()), 5, 5),
-		//utils.RandomMap(lo.Keys(config.P2.Copy()), 5, 5),
-	}
-	utils.MustSave("./cache/process.json", processL, json.Marshal)
-	//utils.MustLoad("./cache/process.json", &processL, json.Unmarshal)
+func learn(frames []*poisson.Area, rf *markov.RandomFactory) (before, after *markov.Model) {
+	muL := rf.BaseDistribution()
+	aL := rf.HiddenDistribution()
+	processL := rf.ObservableDistribution()
 
 	l := markov.NewLearner(markov.NewModel(muL, aL, processL), frames)
 
-	//fmt.Println(l.Model.String())
+	before = l.Model.DeepCopy()
 
 	logProbs := []float64{}
 
 	for i := 0; i < Iters; i++ {
 		l.Step()
 		logProbs = append(logProbs, l.LogProb())
-		fmt.Println(l.Model.String())
 	}
 
 	drawLogProb(logProbs)
 
-	wg.Done()
+	return before, l.Model
 }
 
 func drawLogProb(probs []float64) {

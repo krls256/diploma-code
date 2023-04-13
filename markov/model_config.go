@@ -1,7 +1,6 @@
-package config
+package markov
 
 import (
-	"diploma/markov"
 	"diploma/poisson"
 	"golang.org/x/exp/rand"
 	"gonum.org/v1/gonum/mat"
@@ -14,16 +13,13 @@ const (
 	xEndG             = 10
 	yStartG           = 0
 	yEndG             = 10
-	XAxisPartQuantity = 2
-	YAxisPartQuantity = 2
+	XAxisPartQuantity = 3
+	YAxisPartQuantity = 3
 
 	xCenter = (xEndG - xStartG) / 2
 	yCenter = (yEndG - yStartG) / 2
 
-	N = 3
-
-	LearnerCount = 1
-	Iters        = 1
+	SampleSize = 100
 )
 
 func init() {
@@ -55,5 +51,5 @@ var (
 		0.5, 0.5,
 	})
 
-	MarkovModel = markov.NewModel(Mu, A, []poisson.IntensityMap{P1, P2})
+	MarkovModel = NewModel(Mu, A, []poisson.IntensityMap{P1, P2})
 )
