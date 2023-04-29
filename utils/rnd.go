@@ -58,3 +58,13 @@ func RandomMap[K comparable](keys []K, expectedSum float64) map[K]float64 {
 
 	return m
 }
+
+func UniformMap[K comparable](keys []K, expectedSum float64) map[K]float64 {
+	m := map[K]float64{}
+
+	for _, key := range keys {
+		m[key] = expectedSum / float64(len(keys))
+	}
+
+	return m
+}

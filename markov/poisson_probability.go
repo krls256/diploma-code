@@ -1,8 +1,8 @@
 package markov
 
 import (
+	"diploma/factorial"
 	"diploma/poisson"
-	"gitlab.eemi.tech/golang/factgorial/factgorial"
 	"math"
 )
 
@@ -12,7 +12,7 @@ func PoissonProbability(state int, area *poisson.Area, processes []poisson.Inten
 	for region, count := range *area {
 		g := processes[state][region]
 
-		f, err := factgorial.Factorial(count)
+		f, err := factorial.Factorial(count)
 		if err != nil {
 			panic(err)
 		}

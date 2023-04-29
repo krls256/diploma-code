@@ -7,14 +7,16 @@ import (
 )
 
 type Learner struct {
-	Model  *Model
-	Frames []*poisson.Area
+	StartModel *Model
+	Model      *Model
+	Frames     []*poisson.Area
 
 	ScalingCoefficients []float64 // sum of alphas (it is 1/c in Nilsson terminology)
+	LogProbs            []float64
 }
 
 func NewLearner(model *Model, frames []*poisson.Area) *Learner {
-	return &Learner{Model: model, Frames: frames}
+	return &Learner{StartModel: model.DeepCopy(), Model: model, Frames: frames}
 }
 
 func (l *Learner) CalcB(state int, area *poisson.Area) float64 {

@@ -2,10 +2,12 @@ package utils
 
 import (
 	"bytes"
+	"diploma/constants"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/basicfont"
 	"golang.org/x/image/math/fixed"
 	"gonum.org/v1/plot"
+	"gonum.org/v1/plot/plotter"
 	"gonum.org/v1/plot/vg"
 	"image"
 	"image/color"
@@ -13,18 +15,35 @@ import (
 	"image/png"
 )
 
-func AddLabel(img *image.RGBA, x, y int, label string) {
+func AddLabel(img *image.RGBA, x, y int, labels ...string) {
 	col := color.Black
 
-	point := fixed.Point26_6{X: fixed.I(x), Y: fixed.I(y)}
+	baseY := y - (constants.LineHeightPixel*(len(labels)-1))/2
 
-	d := &font.Drawer{
-		Dst:  img,
-		Src:  image.NewUniform(col),
-		Face: basicfont.Face7x13,
-		Dot:  point,
+	for _, label := range labels {
+		point := fixed.Point26_6{X: fixed.I(x - constants.SymbolWidthPixel*len(label)/4), Y: fixed.I(baseY)}
+
+		d := &font.Drawer{
+			Dst:  img,
+			Src:  image.NewUniform(col),
+			Face: basicfont.Face7x13,
+			Dot:  point,
+		}
+
+		d.DrawString(label)
+
+		baseY += constants.LineHeightPixel
 	}
-	d.DrawString(label)
+}
+
+func FillColor(img *image.RGBA, col color.Color) {
+	x, y := img.Rect.Dx(), img.Rect.Dy()
+
+	for i := 0; i < x; i++ {
+		for j := 0; j < y; j++ {
+			img.Set(i, j, col)
+		}
+	}
 }
 
 func ImageToRGBA(src image.Image) *image.RGBA {
@@ -71,7 +90,7 @@ func HorizontalJoinImage(im image.Image, imgLeft ...image.Image) image.Image {
 }
 
 func PlotToPNG(p *plot.Plot) image.Image {
-	w, err := p.WriterTo(4*vg.Inch, 4*vg.Inch, "png")
+	w, err := p.WriterTo(constants.ImageInchWidth, constants.ImageInchHeight, "png")
 	if err != nil {
 		panic(err)
 	}
@@ -88,4 +107,32 @@ func PlotToPNG(p *plot.Plot) image.Image {
 	}
 
 	return imgPure
+}
+
+func DrawValuesGraphics(values []float64, title, filename string) {
+	p := plot.New()
+
+	p.Title.Text = title
+	p.X.Label.Text = "X"
+	p.Y.Label.Text = "Y"
+	p.Add(plotter.NewGrid())
+
+	lineData := plotter.XYs{}
+	for i, pr := range values {
+		lineData = append(lineData, plotter.XY{X: float64(i), Y: pr})
+	}
+
+	l, err := plotter.NewLine(lineData)
+	if err != nil {
+		panic(err)
+	}
+	l.LineStyle.Width = vg.Points(1)
+	l.LineStyle.Dashes = []vg.Length{vg.Points(5), vg.Points(5)}
+	l.LineStyle.Color = color.RGBA{B: 255, A: 255}
+
+	p.Add(l)
+
+	if err = p.Save(constants.ImageInchWidth, constants.ImageInchHeight, filename+".png"); err != nil {
+		panic(err)
+	}
 }

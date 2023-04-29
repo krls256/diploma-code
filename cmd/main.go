@@ -1,99 +1,48 @@
 package main
 
 import (
+	"diploma/constants"
 	"diploma/markov"
 	"diploma/poisson"
+	"diploma/utils"
+	"encoding/json"
 	"fmt"
-	"gonum.org/v1/plot"
-	"gonum.org/v1/plot/plotter"
-	"gonum.org/v1/plot/vg"
-	"image/color"
 	"sync"
-)
-
-const (
-	N = 100
-
-	LearnerCount = 1
-	Iters        = 100
 )
 
 func main() {
 	rf := markov.NewRandomFactory(false, false)
-	rc := rf.Chain()
 
 	wg := sync.WaitGroup{}
+
+	ms := markov.NewModelSelector(rf)
+
+	ls := ms.Run()
+
+	rc := rf.Chain()
 	wg.Add(1)
 
 	go func() {
-		poisson.DrawGif(rc.Frames, rc.StateChain, []poisson.IntensityMap{markov.P1, markov.P2}, "./report/chain")
+		poisson.DrawGif(rc.Frames, rc.StateChain,
+			[]poisson.IntensityMap{markov.P1, markov.P2}, "./report/chain")
 
 		wg.Done()
 	}()
 
-	for i := 0; i < LearnerCount; i++ {
-		wg.Add(1)
+	for i, l := range ls {
+		l.StartModel.Draw(fmt.Sprintf("report/generated-%v.png", i+1))
+		l.Model.Draw(fmt.Sprintf("report/learned-%v.png", i+1))
+		l.Model.SortByStandardDeviation(markov.MarkovModel)
+		l.Model.Draw(fmt.Sprintf("report/learned-sort-%v.png", i+1))
 
-		go func(index int) {
-			before, after := learn(rc.Frames, rf)
+		for j, intensity := range l.Model.ObservableProcesses {
+			path := constants.CachePath(fmt.Sprintf(constants.IntensityMapFormat, i, j))
 
-			before.Draw(fmt.Sprintf("report/generated-%v.png", index+1))
-			after.Draw(fmt.Sprintf("report/learned-%v.png", index+1))
-
-			wg.Done()
-		}(i)
+			utils.MustSave(path, intensity, json.Marshal)
+		}
 	}
 
 	wg.Wait()
 
 	markov.MarkovModel.Draw("report/original.png")
-}
-
-func learn(frames []*poisson.Area, rf *markov.RandomFactory) (before, after *markov.Model) {
-	muL := rf.BaseDistribution()
-	aL := rf.HiddenDistribution()
-	processL := rf.ObservableDistribution()
-
-	l := markov.NewLearner(markov.NewModel(muL, aL, processL), frames)
-
-	before = l.Model.DeepCopy()
-
-	logProbs := []float64{}
-
-	for i := 0; i < Iters; i++ {
-		l.Step()
-		logProbs = append(logProbs, l.LogProb())
-	}
-
-	drawLogProb(logProbs)
-
-	return before, l.Model
-}
-
-func drawLogProb(probs []float64) {
-	p := plot.New()
-
-	p.Title.Text = "Log Prob"
-	p.X.Label.Text = "X"
-	p.Y.Label.Text = "Y"
-	p.Add(plotter.NewGrid())
-
-	lineData := plotter.XYs{}
-	for i, pr := range probs {
-		lineData = append(lineData, plotter.XY{X: float64(i), Y: pr})
-	}
-
-	l, err := plotter.NewLine(lineData)
-	if err != nil {
-		panic(err)
-	}
-	l.LineStyle.Width = vg.Points(1)
-	l.LineStyle.Dashes = []vg.Length{vg.Points(5), vg.Points(5)}
-	l.LineStyle.Color = color.RGBA{B: 255, A: 255}
-
-	p.Add(l)
-
-	if err = p.Save(4*vg.Inch, 4*vg.Inch, "log-prob.png"); err != nil {
-		panic(err)
-	}
 }

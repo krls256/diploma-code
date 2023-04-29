@@ -2,15 +2,18 @@ package markov
 
 import (
 	"bytes"
+	"diploma/constants"
 	"diploma/poisson"
 	"diploma/utils"
 	"fmt"
 	"github.com/samber/lo"
 	"gonum.org/v1/gonum/mat"
 	"image"
+	"image/color"
 	"image/png"
 	"math/rand"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -73,10 +76,8 @@ func (m *Model) Generate(n int) *ResultChain {
 func (m *Model) String() string {
 	buf := bytes.Buffer{}
 
-	muStr := lo.Map(m.BaseDistribution.RawMatrix().Data, func(item float64, index int) string {
-		return utils.PrecisionString(item)
-	})
-	buf.WriteString(fmt.Sprintf("BaseDistribution: (%v)\n", strings.Join(muStr, ", ")))
+	buf.WriteString(m.BaseDistributionString())
+	buf.WriteString("\n")
 
 	rows, _ := m.HiddenDistribution.Dims()
 
@@ -103,7 +104,15 @@ func (m *Model) String() string {
 }
 
 func (m *Model) Draw(filename string) {
-	imgs := []image.Image{}
+	distributionImage := image.NewRGBA(image.Rect(0, 0, constants.ImagePixelHeight, constants.ImagePixelWidth))
+
+	labels := []string{m.BaseDistributionString()}
+	labels = append(labels, strings.Split(m.HiddenDistributionString(), "\n")...)
+
+	utils.FillColor(distributionImage, color.White)
+	utils.AddLabel(distributionImage, constants.ImagePixelHeight/2, constants.ImagePixelWidth/2, labels...)
+
+	imgs := []image.Image{distributionImage}
 
 	for i, p := range m.ObservableProcesses {
 		imgs = append(imgs, poisson.DrawIntensityMap(p, i+1))
@@ -121,9 +130,12 @@ func (m *Model) Draw(filename string) {
 }
 
 func (m *Model) DeepCopy() *Model {
+	bdRow, bdCol := m.BaseDistribution.Dims()
+	hdRow, hdCol := m.HiddenDistribution.Dims()
+
 	nm := &Model{
-		BaseDistribution:   &mat.Dense{},
-		HiddenDistribution: &mat.Dense{},
+		BaseDistribution:   mat.NewDense(bdRow, bdCol, make([]float64, bdRow*bdCol)),
+		HiddenDistribution: mat.NewDense(hdRow, hdCol, make([]float64, hdRow*hdCol)),
 	}
 
 	nm.BaseDistribution.Copy(m.BaseDistribution)
@@ -134,4 +146,42 @@ func (m *Model) DeepCopy() *Model {
 	}
 
 	return nm
+}
+
+func (m *Model) BaseDistributionString() string {
+	buf := bytes.Buffer{}
+
+	muStr := lo.Map(m.BaseDistribution.RawMatrix().Data, func(item float64, index int) string {
+		return utils.PrecisionString(item)
+	})
+	buf.WriteString(fmt.Sprintf("Mu: (%v)", strings.Join(muStr, ", ")))
+
+	return buf.String()
+}
+
+func (m *Model) HiddenDistributionString() string {
+	buf := bytes.Buffer{}
+
+	rows, _ := m.HiddenDistribution.Dims()
+	buf.WriteString("A: \n")
+	for i := 0; i < rows; i++ {
+		row := m.HiddenDistribution.RawRowView(i)
+
+		rowStr := lo.Map(row, func(item float64, index int) string {
+			return utils.PrecisionString(item)
+		})
+
+		buf.WriteString(fmt.Sprintf("|%v| \n", strings.Join(rowStr, ", ")))
+	}
+
+	return buf.String()
+}
+
+func (m *Model) SortByStandardDeviation(m2 *Model) {
+	ms := &ModelSorter{
+		toSort:     m,
+		baseOnSort: m2,
+	}
+
+	sort.Sort(ms)
 }

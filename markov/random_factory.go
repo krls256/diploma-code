@@ -1,21 +1,13 @@
 package markov
 
 import (
+	"diploma/constants"
 	"diploma/poisson"
 	"diploma/utils"
 	"encoding/json"
-	"fmt"
 	"github.com/samber/lo"
 	"gonum.org/v1/gonum/mat"
 	"sync"
-)
-
-const (
-	CacheDir                   = "./cache"
-	ChainFile                  = "chain.json"
-	BaseDistributionFile       = "base-distribution.bin"
-	HiddenDistributionFile     = "hidden-distribution.bin"
-	ObservableDistributionFile = "observable-distribution.json"
 )
 
 type RandomFactory struct {
@@ -33,17 +25,13 @@ func NewRandomFactory(loadChain, loadDistribution bool) *RandomFactory {
 	}
 }
 
-func (r *RandomFactory) path(filename string) string {
-	return fmt.Sprintf("%s/%s", CacheDir, filename)
-}
-
 func (r *RandomFactory) Chain() *ResultChain {
 	r.chainOnce.Do(func() {
 		if !r.LoadChain {
-			r.rc = MarkovModel.Generate(SampleSize)
-			utils.MustSave(r.path(ChainFile), r.rc, json.Marshal)
+			r.rc = MarkovModel.Generate(constants.SampleSize)
+			utils.MustSave(constants.CachePath(constants.ChainFile), r.rc, json.Marshal)
 		} else {
-			utils.MustLoad(r.path(ChainFile), r.rc, json.Unmarshal)
+			utils.MustLoad(constants.CachePath(constants.ChainFile), r.rc, json.Unmarshal)
 		}
 	})
 
@@ -55,10 +43,10 @@ func (r *RandomFactory) BaseDistribution() *mat.Dense {
 
 	if !r.LoadDistribution {
 		baseDistribution = mat.NewDense(1, 2, utils.RandomStochasticMatrix(1, 2))
-		utils.MustSave(r.path(BaseDistributionFile), baseDistribution, utils.DenseMarshal(baseDistribution))
+		utils.MustSave(constants.CachePath(constants.BaseDistributionFile), baseDistribution, utils.DenseMarshal(baseDistribution))
 
 	} else {
-		utils.MustLoad(r.path(BaseDistributionFile), baseDistribution, utils.DenseUnmarshal(baseDistribution))
+		utils.MustLoad(constants.CachePath(constants.BaseDistributionFile), baseDistribution, utils.DenseUnmarshal(baseDistribution))
 	}
 
 	return baseDistribution
@@ -69,16 +57,26 @@ func (r *RandomFactory) HiddenDistribution() *mat.Dense {
 
 	if !r.LoadDistribution {
 		hiddenDistribution = mat.NewDense(2, 2, utils.RandomStochasticMatrix(2, 2))
-		utils.MustSave(r.path(HiddenDistributionFile), hiddenDistribution, utils.DenseMarshal(hiddenDistribution))
+		utils.MustSave(constants.CachePath(constants.HiddenDistributionFile), hiddenDistribution, utils.DenseMarshal(hiddenDistribution))
 	} else {
 		hiddenDistribution = &mat.Dense{}
-		utils.MustLoad(r.path(HiddenDistributionFile), hiddenDistribution, utils.DenseUnmarshal(hiddenDistribution))
+		utils.MustLoad(constants.CachePath(constants.HiddenDistributionFile), hiddenDistribution, utils.DenseUnmarshal(hiddenDistribution))
 	}
 
 	return hiddenDistribution
 }
 
 func (r *RandomFactory) ObservableDistribution() []poisson.IntensityMap {
+	return r.observableDistribution(utils.RandomMap[poisson.Region])
+}
+
+func (r *RandomFactory) ObservableUniformDistribution() []poisson.IntensityMap {
+	return r.observableDistribution(utils.UniformMap[poisson.Region])
+}
+
+type RandomFunc func(keys []poisson.Region, expectedSum float64) map[poisson.Region]float64
+
+func (r *RandomFactory) observableDistribution(randomFunc RandomFunc) []poisson.IntensityMap {
 	observableDistribution := []poisson.IntensityMap{}
 
 	rc := r.Chain()
@@ -90,12 +88,12 @@ func (r *RandomFactory) ObservableDistribution() []poisson.IntensityMap {
 
 	if !r.LoadDistribution {
 		observableDistribution = append(observableDistribution,
-			utils.RandomMap(lo.Keys(P1), avgPoints),
-			utils.RandomMap(lo.Keys(P1), avgPoints))
+			randomFunc(lo.Keys(P1), avgPoints),
+			randomFunc(lo.Keys(P1), avgPoints))
 
-		utils.MustSave(r.path(ObservableDistributionFile), observableDistribution, json.Marshal)
+		utils.MustSave(constants.CachePath(constants.ObservableDistributionFile), observableDistribution, json.Marshal)
 	} else {
-		utils.MustLoad(r.path(ObservableDistributionFile), &observableDistribution, json.Unmarshal)
+		utils.MustLoad(constants.CachePath(constants.ObservableDistributionFile), &observableDistribution, json.Unmarshal)
 	}
 
 	return observableDistribution

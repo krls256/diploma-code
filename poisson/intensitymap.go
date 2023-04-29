@@ -13,6 +13,16 @@ import (
 
 type IntensityMap map[Region]float64
 
+func (im IntensityMap) Typeless() map[[4]float64]float64 {
+	m := map[[4]float64]float64{}
+	
+	for k, v := range im {
+		m[k] = v
+	}
+
+	return m
+}
+
 func (im IntensityMap) String() string {
 	buf := bytes.Buffer{}
 
@@ -134,4 +144,16 @@ func (a *IntensityMap) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+func StandardDeviation(a, b IntensityMap) float64 {
+	sd, tmp := 0.0, 0.0
+
+	for reg := range a {
+		tmp = a[reg] - b[reg]
+
+		sd += tmp * tmp
+	}
+
+	return sd
 }

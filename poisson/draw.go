@@ -21,7 +21,8 @@ const (
 
 func DrawIntensityMap(im IntensityMap, titleNum int) image.Image {
 	return WriteOnGrid(lo.Keys(im), fmt.Sprintf("Points Process %v", titleNum), func(region Region) string {
-		return fmt.Sprintf("%.3f", im[region])
+
+		return fmt.Sprintf("%.1f", im[region])
 	})
 }
 
@@ -50,11 +51,11 @@ func DrawGif(areas []*Area, stageChain []int, intensityMaps []IntensityMap, file
 	anim := &gif.GIF{}
 
 	for i, area := range areas {
-		currencuIntensityMap := intensityMaps[stageChain[i]]
+		currentIntensityMap := intensityMaps[stageChain[i]]
 
 		img1 := area.Image(NumsImage, i+1)
 		img2 := area.Image(PointsImage, i+1)
-		img3 := DrawIntensityMap(currencuIntensityMap, i+1)
+		img3 := DrawIntensityMap(currentIntensityMap, i+1)
 
 		img := utils.HorizontalJoinImage(img1, img2, img3)
 
@@ -85,7 +86,7 @@ func WriteOnGrid(regions []Region, imageTitle string, textFunc func(Region) stri
 	sizeX, sizeY := max.X-min.X, max.Y-min.Y
 	relSizeX, relSizeY := float64(sizeX)/10, float64(sizeY)/10
 	relSizeX, relSizeY = 32, 31
-	addX, addY := 43.0, 30.0
+	addX, addY := 55.0, 30.0
 
 	for _, region := range regions {
 		x, y := region.Center()
