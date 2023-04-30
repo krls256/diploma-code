@@ -5,6 +5,6 @@ import (
 )
 
 type ResultChain struct {
-	Frames     []*poisson.Area `json:"Frames"`
+	Frames     []*poisson.Area `json:"ObservationSequences"`
 	StateChain []int           `json:"state_chain"`
 }

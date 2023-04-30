@@ -13,9 +13,15 @@ import (
 
 type IntensityMap map[Region]float64
 
+func (im IntensityMap) Add(im1, im2 IntensityMap) {
+	for reg := range im2 {
+		im[reg] = im1[reg] + im2[reg]
+	}
+}
+
 func (im IntensityMap) Typeless() map[[4]float64]float64 {
 	m := map[[4]float64]float64{}
-	
+
 	for k, v := range im {
 		m[k] = v
 	}

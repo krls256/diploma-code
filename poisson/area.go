@@ -60,10 +60,10 @@ func RegionLines(regions []Region) []*plotter.Line {
 	return lines
 }
 
-func (a *Area) PointsImage(titleNum int) image.Image {
+func (a *Area) PointsImage(title string) image.Image {
 	scatterData := a.Points()
 
-	p := DrawGrid(lo.Keys(*a), fmt.Sprintf("Points Process %v", titleNum))
+	p := DrawGrid(lo.Keys(*a), title)
 
 	s, err := plotter.NewScatter(scatterData)
 	if err != nil {
@@ -72,25 +72,25 @@ func (a *Area) PointsImage(titleNum int) image.Image {
 	s.Radius = vg.Points(1)
 	s.GlyphStyle.Color = color.RGBA{A: 255}
 
-	p.Legend.Add("scatter", s)
+	p.Legend.Add("", s)
 
 	p.Add(s)
 
 	return utils.PlotToPNG(p)
 }
 
-func (a *Area) NumsImage(titleNum int) image.Image {
-	return WriteOnGrid(lo.Keys(*a), fmt.Sprintf("Points Process %v", titleNum), func(region Region) string {
+func (a *Area) NumsImage(title string) image.Image {
+	return WriteOnGrid(lo.Keys(*a), title, func(region Region) string {
 		return fmt.Sprintf("%v", (*a)[region])
 	})
 }
 
-func (a *Area) Image(imageType, titleNum int) image.Image {
+func (a *Area) Image(imageType int, title string) image.Image {
 	switch imageType {
 	case PointsImage:
-		return a.PointsImage(titleNum)
+		return a.PointsImage(title)
 	case NumsImage:
-		return a.NumsImage(titleNum)
+		return a.NumsImage(title)
 	default:
 		panic("unknown type")
 	}

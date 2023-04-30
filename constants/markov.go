@@ -12,10 +12,10 @@ const (
 	FieldXCenter = (FieldXEnd - FieldXStart) / 2
 	FieldYCenter = (FieldYEnd - FieldYStart) / 2
 
-	Epochs        = 1
-	LearnersCount = 1
-	ItersPerEpoch = 100
-	SampleSize    = 100
+	ObservationSequences = 10
+	LearnersCount        = 1
+	ItersPerEpoch        = 100
+	SampleSize           = 100
 )
 
 var (

@@ -15,7 +15,7 @@ type RandomFactory struct {
 	LoadDistribution bool
 
 	chainOnce sync.Once
-	rc        *ResultChain
+	rc        []*ResultChain
 }
 
 func NewRandomFactory(loadChain, loadDistribution bool) *RandomFactory {
@@ -25,13 +25,16 @@ func NewRandomFactory(loadChain, loadDistribution bool) *RandomFactory {
 	}
 }
 
-func (r *RandomFactory) Chain() *ResultChain {
+func (r *RandomFactory) Chains() []*ResultChain {
 	r.chainOnce.Do(func() {
 		if !r.LoadChain {
-			r.rc = MarkovModel.Generate(constants.SampleSize)
+			for i := 0; i < constants.ObservationSequences; i++ {
+				r.rc = append(r.rc, MarkovModel.Generate(constants.SampleSize))
+			}
+
 			utils.MustSave(constants.CachePath(constants.ChainFile), r.rc, json.Marshal)
 		} else {
-			utils.MustLoad(constants.CachePath(constants.ChainFile), r.rc, json.Unmarshal)
+			utils.MustLoad(constants.CachePath(constants.ChainFile), &r.rc, json.Unmarshal)
 		}
 	})
 
@@ -79,12 +82,12 @@ type RandomFunc func(keys []poisson.Region, expectedSum float64) map[poisson.Reg
 func (r *RandomFactory) observableDistribution(randomFunc RandomFunc) []poisson.IntensityMap {
 	observableDistribution := []poisson.IntensityMap{}
 
-	rc := r.Chain()
-	totalPoints := lo.Reduce(rc.Frames, func(agg int, item *poisson.Area, index int) int {
+	rc := r.Chains()
+	totalPoints := lo.Reduce(rc[0].Frames, func(agg int, item *poisson.Area, index int) int {
 		return item.TotalPoint() + agg
 	}, 0)
 
-	avgPoints := float64(totalPoints) / float64(len(rc.Frames))
+	avgPoints := float64(totalPoints) / float64(len(rc[0].Frames))
 
 	if !r.LoadDistribution {
 		observableDistribution = append(observableDistribution,

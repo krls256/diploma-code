@@ -115,7 +115,7 @@ func (m *Model) Draw(filename string) {
 	imgs := []image.Image{distributionImage}
 
 	for i, p := range m.ObservableProcesses {
-		imgs = append(imgs, poisson.DrawIntensityMap(p, i+1))
+		imgs = append(imgs, poisson.DrawIntensityMap(p, fmt.Sprintf("Мапа інтенсивності №%v", i+1)))
 	}
 
 	img := utils.HorizontalJoinImage(imgs[0], imgs[1:]...)

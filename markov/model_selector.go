@@ -2,7 +2,9 @@ package markov
 
 import (
 	"diploma/constants"
+	"diploma/poisson"
 	"fmt"
+	"github.com/samber/lo"
 	"github.com/schollz/progressbar/v3"
 	"sort"
 	"sync"
@@ -27,26 +29,25 @@ func (ms *ModelSelector) Run() []*Learner {
 		learners = append(learners, ms.randomLearner())
 	}
 
-	for i := 0; i < constants.Epochs; i++ {
-		fmt.Printf("Epochs [%v/%v]\n", i+1, constants.Epochs)
-		bar := progressbar.Default(constants.LearnersCount * constants.ItersPerEpoch)
+	bar := progressbar.Default(constants.LearnersCount * constants.ItersPerEpoch)
 
-		frames := ms.rf.Chain().Frames
+	frames := lo.Map(ms.rf.Chains(), func(item *ResultChain, index int) []*poisson.Area {
+		return item.Frames
+	})
 
-		for j := 0; j < len(learners); j++ {
-			wg.Add(1)
+	for j := 0; j < len(learners); j++ {
+		wg.Add(1)
 
-			learners[j].Frames = frames
+		learners[j].ObservationSequences = frames
 
-			go func(index int) {
-				ms.learn(learners[index], bar)
+		go func(index int) {
+			ms.learn(learners[index], bar)
 
-				wg.Done()
-			}(j)
-		}
-
-		wg.Wait()
+			wg.Done()
+		}(j)
 	}
+
+	wg.Wait()
 
 	sort.Slice(learners, func(i, j int) bool {
 		return learners[i].LogProb() > learners[j].LogProb()

@@ -22,11 +22,11 @@ func irregular(x, y float64) float64 {
 }
 
 func cand1(x, y float64) float64 {
-	return y * y / 10
+	return y * y / 10 / 5
 }
 
 func cand2(x, y float64) float64 {
-	return math.Pow(math.E, 4+(y-x)*(x-y)/24) / 15
+	return math.Pow(math.E, 4+(y-x)*(x-y)/24) / 15 / 5
 }
 
 var (

@@ -19,11 +19,11 @@ func main() {
 
 	ls := ms.Run()
 
-	rc := rf.Chain()
+	rc := rf.Chains()
 	wg.Add(1)
 
 	go func() {
-		poisson.DrawGif(rc.Frames, rc.StateChain,
+		poisson.DrawGif(rc[0].Frames, rc[0].StateChain,
 			[]poisson.IntensityMap{markov.P1, markov.P2}, "./report/chain")
 
 		wg.Done()

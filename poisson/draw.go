@@ -19,8 +19,8 @@ const (
 	NumsImage
 )
 
-func DrawIntensityMap(im IntensityMap, titleNum int) image.Image {
-	return WriteOnGrid(lo.Keys(im), fmt.Sprintf("Points Process %v", titleNum), func(region Region) string {
+func DrawIntensityMap(im IntensityMap, title string) image.Image {
+	return WriteOnGrid(lo.Keys(im), title, func(region Region) string {
 
 		return fmt.Sprintf("%.1f", im[region])
 	})
@@ -29,7 +29,7 @@ func DrawIntensityMap(im IntensityMap, titleNum int) image.Image {
 func DrawFrames(areas []*Area, filenameBase string, imageType int) {
 	for i, area := range areas {
 		filename := fmt.Sprintf("%v-%v.png", filenameBase, i+1)
-		img := area.Image(imageType, i+1)
+		img := area.Image(imageType, fmt.Sprintf("Спостереження №%v", i+1))
 
 		f, err := os.OpenFile(filename, os.O_RDWR|os.O_TRUNC|os.O_CREATE, 0666)
 		if err != nil {
@@ -53,9 +53,9 @@ func DrawGif(areas []*Area, stageChain []int, intensityMaps []IntensityMap, file
 	for i, area := range areas {
 		currentIntensityMap := intensityMaps[stageChain[i]]
 
-		img1 := area.Image(NumsImage, i+1)
-		img2 := area.Image(PointsImage, i+1)
-		img3 := DrawIntensityMap(currentIntensityMap, i+1)
+		img1 := area.Image(NumsImage, fmt.Sprintf("Результат точкового процесу №%v", i+1))
+		img2 := area.Image(PointsImage, fmt.Sprintf("Умовне зображення точкового процесу №%v", i+1))
+		img3 := DrawIntensityMap(currentIntensityMap, fmt.Sprintf("Мапа інтенсивності точкового процесу №%v", i+1))
 
 		img := utils.HorizontalJoinImage(img1, img2, img3)
 
