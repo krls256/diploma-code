@@ -14,8 +14,9 @@ const (
 
 	ObservationSequences = 10
 	LearnersCount        = 1
-	ItersPerEpoch        = 100
-	SampleSize           = 100
+
+	ItersPerEpoch = 10
+	SampleSize    = 250
 )
 
 var (

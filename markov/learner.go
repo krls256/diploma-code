@@ -103,7 +103,7 @@ func (l *Learner) Step() (scalingCoefficients []float64) {
 			for region := range *frames[0] {
 				top := 0.0
 				bottom := 0.0
-				for t := 0; t < T-1; /* WARN not T+1 */ t++ {
+				for t := 0; t < T-1; t++ {
 					subSum := 0.0
 					count := (*frames[t])[region]
 
@@ -113,8 +113,10 @@ func (l *Learner) Step() (scalingCoefficients []float64) {
 
 					bottom += alphas[t][i] * subSum
 					top += alphas[t][i] * subSum * float64(count)
-
 				}
+
+				top += alphas[T-1][i] * float64((*frames[T-1])[region])
+				bottom += alphas[T-1][i]
 
 				newProcessesTop[i][region] = top
 				newProcessesBottom[i][region] = bottom

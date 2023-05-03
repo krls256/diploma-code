@@ -6,7 +6,7 @@ import json
 
 iter_max = 2
 intensity = 0
-format = "./cache/intensity-{}-{}.json"
+format = "./cache/org-intensity-{}-{}.json"
 
 
 fig = plt.figure()
@@ -14,7 +14,7 @@ axs = (fig.add_subplot(121, projection='3d'), fig.add_subplot(122, projection='3
 colors = ("blue", "green")
 
 for iter in range(iter_max):
-    with open(format.format(iter, intensity)) as json_file:
+    with open(format.format(intensity,iter)) as json_file:
         dataDRT = json.load(json_file)
 
     data = {}

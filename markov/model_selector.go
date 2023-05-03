@@ -23,11 +23,7 @@ func NewModelSelector(rf *RandomFactory) *ModelSelector {
 func (ms *ModelSelector) Run() []*Learner {
 	wg := sync.WaitGroup{}
 
-	learners := make([]*Learner, 0)
-
-	for j := 0; j < constants.LearnersCount; j++ {
-		learners = append(learners, ms.randomLearner())
-	}
+	learners := ms.randomLearners()
 
 	bar := progressbar.Default(constants.LearnersCount * constants.ItersPerEpoch)
 
@@ -58,12 +54,18 @@ func (ms *ModelSelector) Run() []*Learner {
 	return learners
 }
 
-func (ms *ModelSelector) randomLearner() *Learner {
-	muL := ms.rf.BaseDistribution()
-	aL := ms.rf.HiddenDistribution()
-	processL := ms.rf.ObservableDistribution()
+func (ms *ModelSelector) randomLearners() []*Learner {
+	learners := []*Learner{}
 
-	return NewLearner(NewModel(muL, aL, processL), nil)
+	muLs := ms.rf.BaseDistributions()
+	aLs := ms.rf.HiddenDistribution()
+	processLs := ms.rf.ObservableDistribution()
+
+	for i := 0; i < constants.LearnersCount; i++ {
+		learners = append(learners, NewLearner(NewModel(muLs[i], aLs[i], processLs[i]), nil))
+	}
+
+	return learners
 }
 
 func (ms *ModelSelector) learn(l *Learner, bar *progressbar.ProgressBar) {

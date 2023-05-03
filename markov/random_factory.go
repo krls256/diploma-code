@@ -14,8 +14,10 @@ type RandomFactory struct {
 	LoadChain        bool
 	LoadDistribution bool
 
-	chainOnce sync.Once
-	rc        []*ResultChain
+	chainOnce, bdOnce, hdOnce, odOnce sync.Once
+	rc                                []*ResultChain
+	bd, hd                            []*mat.Dense
+	od                                [][]poisson.IntensityMap
 }
 
 func NewRandomFactory(loadChain, loadDistribution bool) *RandomFactory {
@@ -38,66 +40,79 @@ func (r *RandomFactory) Chains() []*ResultChain {
 		}
 	})
 
-	return r.rc
+	return lo.Map(r.rc, func(item *ResultChain, index int) *ResultChain {
+		item.Frames = item.Frames[:constants.SampleSize]
+		item.StateChain = item.StateChain[:constants.SampleSize]
+
+		return item
+	})
 }
 
-func (r *RandomFactory) BaseDistribution() *mat.Dense {
-	baseDistribution := &mat.Dense{}
+func (r *RandomFactory) BaseDistributions() []*mat.Dense {
+	r.bdOnce.Do(func() {
+		if !r.LoadDistribution {
+			for i := 0; i < constants.LearnersCount; i++ {
+				r.bd = append(r.bd, mat.NewDense(1, 2, utils.RandomStochasticMatrix(1, 2)))
+			}
 
-	if !r.LoadDistribution {
-		baseDistribution = mat.NewDense(1, 2, utils.RandomStochasticMatrix(1, 2))
-		utils.MustSave(constants.CachePath(constants.BaseDistributionFile), baseDistribution, utils.DenseMarshal(baseDistribution))
+			utils.MustSave(constants.CachePath(constants.BaseDistributionFile), r.bd, utils.ManyDenseMarshal(r.bd))
 
-	} else {
-		utils.MustLoad(constants.CachePath(constants.BaseDistributionFile), baseDistribution, utils.DenseUnmarshal(baseDistribution))
-	}
+		} else {
+			utils.MustLoad(constants.CachePath(constants.BaseDistributionFile), &r.bd, utils.ManyDenseUnmarshal(&r.bd))
+		}
+	})
 
-	return baseDistribution
+	return r.bd
 }
 
-func (r *RandomFactory) HiddenDistribution() *mat.Dense {
-	hiddenDistribution := &mat.Dense{}
+func (r *RandomFactory) HiddenDistribution() []*mat.Dense {
+	r.hdOnce.Do(func() {
+		if !r.LoadDistribution {
+			for i := 0; i < constants.LearnersCount; i++ {
+				r.hd = append(r.hd, mat.NewDense(2, 2, utils.RandomStochasticMatrix(2, 2)))
+			}
 
-	if !r.LoadDistribution {
-		hiddenDistribution = mat.NewDense(2, 2, utils.RandomStochasticMatrix(2, 2))
-		utils.MustSave(constants.CachePath(constants.HiddenDistributionFile), hiddenDistribution, utils.DenseMarshal(hiddenDistribution))
-	} else {
-		hiddenDistribution = &mat.Dense{}
-		utils.MustLoad(constants.CachePath(constants.HiddenDistributionFile), hiddenDistribution, utils.DenseUnmarshal(hiddenDistribution))
-	}
+			utils.MustSave(constants.CachePath(constants.HiddenDistributionFile), r.hd, utils.ManyDenseMarshal(r.hd))
+		} else {
+			utils.MustLoad(constants.CachePath(constants.HiddenDistributionFile), &r.hd, utils.ManyDenseUnmarshal(&r.hd))
+		}
+	})
 
-	return hiddenDistribution
+	return r.hd
 }
 
-func (r *RandomFactory) ObservableDistribution() []poisson.IntensityMap {
+func (r *RandomFactory) ObservableDistribution() [][]poisson.IntensityMap {
 	return r.observableDistribution(utils.RandomMap[poisson.Region])
 }
 
-func (r *RandomFactory) ObservableUniformDistribution() []poisson.IntensityMap {
+func (r *RandomFactory) ObservableUniformDistribution() [][]poisson.IntensityMap {
 	return r.observableDistribution(utils.UniformMap[poisson.Region])
 }
 
 type RandomFunc func(keys []poisson.Region, expectedSum float64) map[poisson.Region]float64
 
-func (r *RandomFactory) observableDistribution(randomFunc RandomFunc) []poisson.IntensityMap {
-	observableDistribution := []poisson.IntensityMap{}
+func (r *RandomFactory) observableDistribution(randomFunc RandomFunc) [][]poisson.IntensityMap {
+	r.odOnce.Do(func() {
+		rc := r.Chains()
+		totalPoints := lo.Reduce(rc[0].Frames, func(agg int, item *poisson.Area, index int) int {
+			return item.TotalPoint() + agg
+		}, 0)
 
-	rc := r.Chains()
-	totalPoints := lo.Reduce(rc[0].Frames, func(agg int, item *poisson.Area, index int) int {
-		return item.TotalPoint() + agg
-	}, 0)
+		avgPoints := float64(totalPoints) / float64(len(rc[0].Frames))
 
-	avgPoints := float64(totalPoints) / float64(len(rc[0].Frames))
+		if !r.LoadDistribution {
+			for i := 0; i < constants.LearnersCount; i++ {
+				r.od = append(r.od, []poisson.IntensityMap{
+					randomFunc(lo.Keys(P1), avgPoints),
+					randomFunc(lo.Keys(P1), avgPoints),
+				})
+			}
 
-	if !r.LoadDistribution {
-		observableDistribution = append(observableDistribution,
-			randomFunc(lo.Keys(P1), avgPoints),
-			randomFunc(lo.Keys(P1), avgPoints))
+			utils.MustSave(constants.CachePath(constants.ObservableDistributionFile), r.od, json.Marshal)
+		} else {
+			utils.MustLoad(constants.CachePath(constants.ObservableDistributionFile), &r.od, json.Unmarshal)
+		}
+	})
 
-		utils.MustSave(constants.CachePath(constants.ObservableDistributionFile), observableDistribution, json.Marshal)
-	} else {
-		utils.MustLoad(constants.CachePath(constants.ObservableDistributionFile), &observableDistribution, json.Unmarshal)
-	}
-
-	return observableDistribution
+	return r.od
 }
