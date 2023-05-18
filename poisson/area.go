@@ -72,8 +72,6 @@ func (a *Area) PointsImage(title string) image.Image {
 	s.Radius = vg.Points(1)
 	s.GlyphStyle.Color = color.RGBA{A: 255}
 
-	p.Legend.Add("", s)
-
 	p.Add(s)
 
 	return utils.PlotToPNG(p)

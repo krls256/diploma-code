@@ -55,4 +55,12 @@ func main() {
 	wg.Wait()
 
 	markov.MarkovModel.Draw("report/original.png")
+
+	for i := 0; i < len(rc); i++ {
+		diff := utils.CountDiff(rc[i].StateChain, ls[0].Model.Viterbi(rc[i].Frames))
+		acc := float64(len(rc[i].StateChain))
+		acc = (acc - float64(diff)) / acc
+
+		fmt.Printf("Chain No %v. Error quntity: %v. Accuracy: %.3f%%\n", i+1, diff, acc*100)
+	}
 }

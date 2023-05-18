@@ -185,3 +185,39 @@ func (m *Model) SortByStandardDeviation(m2 *Model) {
 
 	sort.Sort(ms)
 }
+
+func (m *Model) Viterbi(obs []*poisson.Area) []int {
+	_, states := m.BaseDistribution.Dims()
+	deltas := make([][]float64, len(obs))
+	etas := make([][]int, len(obs))
+
+	for t := 0; t < len(obs); t++ {
+		deltas[t] = make([]float64, states)
+		etas[t] = make([]int, states)
+
+		for i := 0; i < states; i++ {
+			if t == 0 {
+				deltas[0][i] = m.BaseDistribution.At(0, i) * PoissonProbability(i, obs[t], m.ObservableProcesses)
+			} else {
+				tmpSlice := lo.Map(deltas[t-1], func(item float64, index int) float64 {
+					return item * m.HiddenDistribution.At(index, i)
+				})
+
+				deltas[t][i] = utils.Max(tmpSlice) * PoissonProbability(i, obs[t], m.ObservableProcesses)
+				etas[t][i] = utils.MaxIndex(tmpSlice)
+			}
+		}
+
+		deltas[t] = utils.Scale(deltas[t])
+	}
+
+	result := make([]int, len(obs))
+
+	for t := 1; t < len(obs); t++ {
+		result[t-1] = etas[t][utils.MaxIndex(deltas[t])]
+	}
+
+	result[len(obs)-1] = utils.MaxIndex(deltas[len(obs)-1])
+
+	return result
+}

@@ -136,3 +136,45 @@ func DrawValuesGraphics(values []float64, title, filename string) {
 		panic(err)
 	}
 }
+
+func DrawVariablesProgress(vars [][]float64, legengs []string, title, xName, yName, filename string) {
+	p := plot.New()
+
+	p.Title.Text = title
+	p.X.Label.Text = xName
+	p.Y.Label.Text = yName
+
+	c := colorer()
+
+	for i := 0; i < len(vars); i++ {
+		lineData := plotter.XYs{}
+		for i, pr := range vars[i] {
+			lineData = append(lineData, plotter.XY{X: float64(i), Y: pr})
+		}
+
+		l, err := plotter.NewLine(lineData)
+		if err != nil {
+			panic(err)
+		}
+		l.LineStyle.Width = vg.Points(1)
+		l.LineStyle.Dashes = []vg.Length{vg.Points(5), vg.Points(5)}
+		l.LineStyle.Color = c()
+
+		p.Add(l)
+		p.Legend.Add(legengs[i], l)
+	}
+
+	if err := p.Save(constants.ImageInchWidth, constants.ImageInchHeight, filename+".png"); err != nil {
+		panic(err)
+	}
+}
+
+func colorer() func() color.RGBA {
+	init := color.RGBA{R: 0, G: 85, B: 170, A: 255}
+	return func() color.RGBA {
+		init.R += 86
+		init.G += 86
+		init.B += 86
+		return init
+	}
+}

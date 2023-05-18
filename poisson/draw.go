@@ -50,14 +50,15 @@ func DrawGif(areas []*Area, stageChain []int, intensityMaps []IntensityMap, file
 
 	anim := &gif.GIF{}
 
-	for i, area := range areas {
-		currentIntensityMap := intensityMaps[stageChain[i]]
+	for _, area := range areas {
+		//currentIntensityMap := intensityMaps[stageChain[i]]
 
-		img1 := area.Image(NumsImage, fmt.Sprintf("Результат точкового процесу №%v", i+1))
-		img2 := area.Image(PointsImage, fmt.Sprintf("Умовне зображення точкового процесу №%v", i+1))
-		img3 := DrawIntensityMap(currentIntensityMap, fmt.Sprintf("Мапа інтенсивності точкового процесу №%v", i+1))
+		//img1 := area.Image(NumsImage, fmt.Sprintf("Результат точкового процесу №%v", i+1))
+		img2 := area.Image(PointsImage /*fmt.Sprintf("Умовне зображення точкового процесу №%v", i+1)*/, "")
+		//img3 := DrawIntensityMap(currentIntensityMap, fmt.Sprintf("Мапа інтенсивності точкового процесу №%v", i+1))
 
-		img := utils.HorizontalJoinImage(img1, img2, img3)
+		//img := utils.HorizontalJoinImage(img1, img2, img3)
+		img := img2
 
 		bounds := img.Bounds()
 		palettedImage := image.NewPaletted(bounds, nil)

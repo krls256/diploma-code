@@ -11,6 +11,8 @@ type Learner struct {
 	Model                *Model
 	ObservationSequences [][]*poisson.Area
 
+	History []*Model
+
 	ScalingCoefficients []float64 // sum of alphas (it is 1/c in Nilsson terminology)
 	LogProbs            []float64
 }
@@ -21,14 +23,6 @@ func NewLearner(model *Model, observationSequences [][]*poisson.Area) *Learner {
 
 func (l *Learner) CalcB(state int, area *poisson.Area) float64 {
 	return PoissonProbability(state, area, l.Model.ObservableProcesses)
-}
-
-func (l *Learner) CalcAlphas(useScale bool, frames []*poisson.Area) (alphas [][]float64, scalingCoefficients []float64) {
-	return Forward(useScale, frames, l.Model)
-}
-
-func (l *Learner) CalcBetas(useScale bool, scalingCoefficients []float64, frames []*poisson.Area) [][]float64 {
-	return Backward(useScale, scalingCoefficients, frames, l.Model)
 }
 
 func (l *Learner) Step() (scalingCoefficients []float64) {
@@ -48,8 +42,8 @@ func (l *Learner) Step() (scalingCoefficients []float64) {
 		frames := l.ObservationSequences[o]
 		T := len(frames)
 
-		alphas, scalingCoefficients := l.CalcAlphas(useScale, frames)
-		betas := l.CalcBetas(useScale, scalingCoefficients, frames)
+		alphas, scalingCoefficients := Forward(useScale, frames, l.Model)
+		betas := Backward(useScale, scalingCoefficients, frames, l.Model)
 
 		newMu := mat.NewDense(1, states, make([]float64, states))
 		newATop := mat.NewDense(states, states, make([]float64, states*states))
@@ -172,6 +166,8 @@ func (l *Learner) Step() (scalingCoefficients []float64) {
 			newProcesses[i][reg] = newProcessesTop[i][reg] / newProcessesBottom[i][reg]
 		}
 	}
+
+	l.History = append(l.History, NewModel(l.Model.BaseDistribution, l.Model.HiddenDistribution, l.Model.ObservableProcesses))
 
 	l.Model.BaseDistribution = newMu
 	l.Model.HiddenDistribution = newA
